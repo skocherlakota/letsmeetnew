@@ -13,6 +13,19 @@ io.on('connection', (socket) => {
   });
 });
 
+io.on('connection', (socket) => {
+  socket.on('message1', msg => {
+    io.emit('message1', msg);
+  });
+});
+
+io.on('connection', (socket) => {
+  socket.on('message2', msg => {
+    io.emit('message2', msg);
+  });
+});
+
 http.listen(port, () => {
   console.log(`Socket.IO server running at http://localhost:${port}/`);
 });
+

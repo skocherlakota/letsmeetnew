@@ -1,48 +1,336 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <title>Socket.IO chat</title>
-    <style>
-      body { margin: 0; padding-bottom: 3rem; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
 
-      #form { background: rgba(0, 0, 0, 0.15); padding: 0.25rem; position: fixed; bottom: 0; left: 0; right: 0; display: flex; height: 3rem; box-sizing: border-box; backdrop-filter: blur(10px); }
-      #input { border: none; padding: 0 1rem; flex-grow: 1; border-radius: 2rem; margin: 0.25rem; }
-      #input:focus { outline: none; }
-      #form > button { background: #333; border: none; padding: 0 1rem; margin: 0.25rem; border-radius: 3px; outline: none; color: #fff; }
+<head>
+  <title>Socket.IO chat</title>
+  <style>
+    body {
+      margin: 0;
+      padding-bottom: 3rem;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
 
-      #messages { list-style-type: none; margin: 0; padding: 0; }
-      #messages > li { padding: 0.5rem 1rem; }
-      #messages > li:nth-child(odd) { background: #efefef; }
-    </style>
-  </head>
-  <body>
-    <ul id="messages"></ul>
-    <form id="form" action="">
-      <input id="input" autocomplete="off" /><button>Send</button>
-    </form>
-    <script src="/socket.io/socket.io.js"></script>
+    #form {
+      background: rgba(0, 0, 0, 0.15);
+      padding: 0.25rem;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      height: 3rem;
+      box-sizing: border-box;
+      backdrop-filter: blur(10px);
+    }
 
-    <script>
-      var socket = io();
+    #input {
+      border: none;
+      padding: 0 1rem;
+      flex-grow: 1;
+      border-radius: 2rem;
+      margin: 0.25rem;
+    }
 
-      var messages = document.getElementById('messages');
-      var form = document.getElementById('form');
-      var input = document.getElementById('input');
+    #input:focus {
+      outline: none;
+    }
 
-      form.addEventListener('submit', function(e) {
-        e.preventDefault();
-        if (input.value) {
-          socket.emit('chat message', input.value);
-          input.value = '';
-        }
-      });
+    #form>button {
+      background: #333;
+      border: none;
+      padding: 0 1rem;
+      margin: 0.25rem;
+      border-radius: 3px;
+      outline: none;
+      color: #fff;
+    }
 
-      socket.on('chat message', function(msg) {
-        var item = document.createElement('li');
-        item.textContent = msg;
-        messages.appendChild(item);
-        window.scrollTo(0, document.body.scrollHeight);
-      });
-    </script>
-  </body>
+    #messages {
+      list-style-type: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    #messages>li {
+      padding: 0.5rem 1rem;
+    }
+
+    #messages>li:nth-child(odd) {
+      background: #efefef;
+    }
+
+    #live {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #000;
+  display: none;
+}
+#local-video {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 250px;
+  -webkit-transform: scaleX(-1);
+  transform: scaleX(-1);
+  margin: 16px;
+  border: 2px solid #fff;
+}
+#remote-video {
+  position: absolute;
+  max-width: 100%;
+  height: 100%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+#end-call {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  padding: 8px;
+  background-color: red;
+  color: white;
+  border: none;
+  margin: 16px;
+}
+
+  </style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/css/bootstrap.min.css"
+    integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/js/bootstrap.min.js"
+    integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl"
+    crossorigin="anonymous"></script>
+  <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"
+    integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN"
+    crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.12.9/dist/umd/popper.min.js"
+    integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q"
+    crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
+</head>
+
+<body>
+
+  <div class="container">
+    <div class="card-deck mb-2 text-center">
+
+      <div class="card mb-6 box-shadow">
+        <div class="card-header">
+          <h4 id="user1namelbl" class="my-0 font-weight-normal"><input id="user1nameinput" type="text" /></h4>
+        </div>
+        <div class="card-body">
+          <h3 id="messages1"></h3>
+          <button id="button1start" type="button" class="btn btn-md btn-outline-primary">Start session</button>
+          <div id="btngrp1" style="visibility: collapse;">
+            <div class="btn-group mr-3" role="group" aria-label="First group">
+              <button id="button1" type="button" class="btn btn-md btn-outline-primary">Know more</button>
+            </div>
+            <div class="btn-group mr-3" role="group" aria-label="second group">
+              <button id="button1rand" type="button" class="btn btn-md btn-outline-success">Ask random</button>
+            </div>
+            <div class="btn-group mr-3" role="group" aria-label="third group">
+              <button id="button1close" type="button" class="btn btn-md btn-outline-warning">Say Bye</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card mb-6 box-shadow">
+        <div class="card-header">
+          <h4 id="user2namelbl" class="my-0 font-weight-normal"><input id="user2nameinput" type="text" /></h4>
+        </div>
+        <div class="card-body">
+          <h3 id="messages2"></h3>
+          <button id="button2start" type="button" class="btn btn-md btn-outline-primary">Start session</button>
+          <div id="btngrp2" style="visibility: collapse;">
+            <div class="btn-group mr-3" role="group" aria-label="First group">
+              <button id="button2" type="button" class="btn btn-md btn-outline-primary">Know more</button>
+            </div>
+            <div class="btn-group mr-3" role="group" aria-label="second group">
+              <button id="button1rand" type="button" class="btn btn-md btn-outline-success">Ask random</button>
+            </div>
+            <div class="btn-group mr-3" role="group" aria-label="third group">
+              <button id="button1close" type="button" class="btn btn-md btn-outline-warning">Say Bye</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="menu">
+        <p>Your ID:</p>
+        <p id="uuid"></p>
+        <input type="text" placeholder="Peer id" />
+        <button onclick="callUser()">Connect</button>
+      </div>
+
+      <div id="live">
+        <video id="remote-video"></video>
+        <video id="local-video" muted="true"></video>
+        <button id="end-call" onclick="endCall()">End Call</button>
+      </div>
+
+    </div>
+
+    <footer class="pt-4 my-md-5 pt-md-5 border-top">
+      <div class="row">
+        <div class="col-12 col-md">
+          <img class="mb-2" src="https://getbootstrap.com/docs/4.0/assets/brand/bootstrap-solid.svg" alt="" width="24"
+            height="24">
+          <small class="d-block mb-3 text-muted">© 2022-2050</small>
+        </div>
+        <div class="col-6 col-md align-right">
+          <h5>About</h5>
+          <ul class="list-unstyled text-small">
+            <li><a class="text-muted" href="#">Privacy</a></li>
+            <li><a class="text-muted" href="#">Terms</a></li>
+          </ul>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <ul id="messages"></ul>
+  <form id="form" action="">
+    <input id="input" autocomplete="off" />
+    <Button variant="contained">Outlined</Button>
+  </form>
+  <script src="/socket.io/socket.io.js"></script>
+
+  <script>
+
+const peer =new Peer();var currentCall;peer.on("open", function (id) {
+  document.getElementById("uuid").textContent = id;
+});
+
+async function callUser() {
+  // get the id entered by the user
+  const peerId = document.querySelector("input").value;// grab the camera and mic
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: true,
+    audio: true,
+  });// switch to the video call and play the camera preview
+  document.getElementById("menu").style.display = "none";
+  document.getElementById("live").style.display = "block";
+  document.getElementById("local-video").srcObject = stream;
+  document.getElementById("local-video").play();// make the call
+  const call = peer.call(peerId, stream);
+  call.on("stream", (stream) => {
+    document.getElementById("remote-video").srcObject = stream;
+    document.getElementById("remote-video").play();
+  });
+  call.on("data", (stream) => {
+    document.querySelector("#remote-video").srcObject = stream;
+  });
+  call.on("error", (err) => {
+    console.log(err);
+  });
+  call.on('close', () => {
+    endCall()
+  })// save the close function
+  currentCall = call;
+}
+
+function endCall() {
+  // Go back to the menu
+  document.querySelector("#menu").style.display = "block";
+  document.querySelector("#live").style.display = "none";// If there is no current call, return
+  if (!currentCall) return;// Close the call, and reset the function
+  try {
+    currentCall.close();
+  } catch {}
+  currentCall = undefined;
+}
+
+    const questions = ["What would like to be called", 
+                       "Where do you live", 
+                       "What's your native", 
+                       "Tell me about your family",
+                       "Do you like pets",
+                       "Waht are your hobbies",
+                       "What is that intrests you the most",
+                       "How long are you in the engagement",
+                       "How is the experience so far on this",
+                       "Can you share any fun fact about you",
+                       "What food do you like the most",
+                       "Who's you favourite superhero/actor",
+                       "Do you travel",
+                       "Waht's your favourite place"];
+
+    var socket = io();
+    var messages = document.getElementById('messages');
+    var form = document.getElementById('form');
+    var input = document.getElementById('input');
+
+    var messages1 = document.getElementById('messages1');
+    var messages2 = document.getElementById('messages2');
+
+
+    form.addEventListener('submit', function (e) {
+      alert('f1');
+      e.preventDefault();
+      if (input.value) {
+        socket.emit('chat message', input.value);
+        input.value = '';
+      }
+    });
+
+    socket.on('chat message', function (msg) {
+      var item = document.createElement('li');
+      item.textContent = msg;
+      messages.appendChild(item);
+      window.scrollTo(0, document.body.scrollHeight);
+    });
+
+    var button1 = document.getElementById('button1');
+    button1.addEventListener('click', function (e) {
+      socket.emit('message1', questions.pop());
+    });
+
+    var button2 = document.getElementById('button2');
+    button2.addEventListener('click', function (e) {
+      socket.emit('message2', questions.pop());
+    });
+
+    socket.on('message1', function (msg) {      
+      messages2.textContent = msg;
+      window.scrollTo(0, document.body.scrollHeight);
+    });
+
+    socket.on('message2', function (msg) {
+      messages1.textContent = msg;
+      window.scrollTo(0, document.body.scrollHeight);
+    });
+
+    var button1start = document.getElementById('button1start');
+    var user1lbl = document.getElementById('user1namelbl');
+    var user1input = document.getElementById('user1nameinput');
+    var btngrp1 = document.getElementById('btngrp1');
+    
+    button1start.addEventListener('click', function (e) {
+      user1lbl.textContent = user1input.value;
+      user1input.setAttribute("visibility","hidden");
+      btngrp1.removeAttribute("style");
+      button1start.setAttribute("style","visibility:hidden");      
+    });
+
+    var button2start = document.getElementById('button2start');
+    var user2lbl = document.getElementById('user2namelbl');
+    var user2input = document.getElementById('user2nameinput');
+    var btngrp2 = document.getElementById('btngrp2');
+    
+    button2start.addEventListener('click', function (e) {
+      user2lbl.textContent = user2input.value;
+      user2input.setAttribute("visibility","hidden");
+      btngrp2.removeAttribute("style");
+      button2start.setAttribute("style","visibility:hidden");      
+    });
+
+
+  </script>
+</body>
+
 </html>
